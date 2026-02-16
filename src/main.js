@@ -183,7 +183,7 @@ class TugestoWidget {
   }
 
   attachEvents() {
-    // Abrir modal al hacer clic en la burbuja
+    // Abrir modal
     document.getElementById('tugesto-bubble').addEventListener('click', () => this.openModal());
     
     // Cerrar modal
@@ -235,21 +235,25 @@ class TugestoWidget {
   }
 
   async sendMessage(text) {
-      if (!text.trim()) return;
-      
-      // 1. Mostrar tu mensaje en la pantalla
-      this.addMessageToChat('user', text);
-      document.getElementById('tugesto-input').value = '';
+    if (!text.trim()) return;
+    
+    // 1. Mostrar tu mensaje en la pantalla
+    this.addMessageToChat('user', text);
+    document.getElementById('tugesto-input').value = '';
 
-      // 2. Enviar el texto real a la IA de ElevenLabs
-      if (this.conversation && this.isConnected) {
-        try {
-          await this.conversation.sendUserMessage({ text: text }); 
-        } catch (e) {
-          console.error("Error al enviar mensaje de texto:", e);
-        }
+    // 2. Enviar el texto real a la IA de ElevenLabs
+    if (this.conversation && this.isConnected) {
+      try {
+        // Mostramos un estado para que no haya interrupciones por ruido
+        this.updateStatus('Procesando texto...');
+        // OJO: Pasamos el 'text' directamente como string, no como objeto
+        await this.conversation.sendUserMessage(text); 
+      } catch (e) {
+        console.error("Error al enviar mensaje de texto:", e);
+        this.addMessageToChat('agent', '(Error al enviar el mensaje. Revisa la consola)');
       }
     }
+  }
 
   async toggleAgentVolume() {
     if (!this.conversation) return;
@@ -306,6 +310,7 @@ class TugestoWidget {
             const messagesList = document.getElementById('tugesto-messages-list');
             const lastMessage = messagesList.lastElementChild;
             
+            // Agrupamos el texto de la IA en la misma burbuja si sigue hablando
             if (lastMessage && lastMessage.classList.contains('agent')) {
               lastMessage.textContent += " " + text;
             } else {
@@ -343,6 +348,7 @@ class TugestoWidget {
   }
 }
 
+// Inicializar
 window.addEventListener('DOMContentLoaded', () => {
   new TugestoWidget();
 });
