@@ -223,7 +223,7 @@ class TugestoWidget {
     document.getElementById('tugesto-status-text').textContent = text;
   }
 
-  addMessage ToChat(role, text) {
+  addMessageToChat(role, text) {
     const messagesList = document.getElementById('tugesto-messages-list');
     const msgElement = document.createElement('div');
     msgElement.className = `tugesto-message ${role}`;
