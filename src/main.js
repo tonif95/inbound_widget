@@ -7,7 +7,8 @@ class TugestoWidget {
   constructor() {
     this.conversation = null;
     this.isConnected = false;
-    this.isMicMuted = false;
+    this.isAgentMuted = false;
+    
     // Tus URLs de video absolutas para que funcionen en cualquier sitio
     this.videos = {
       'fichaje': 'https://tu-dominio.com/videos/demo-fichaje.mp4',
@@ -134,8 +135,9 @@ class TugestoWidget {
 
       <div id="tugesto-modal" class="tugesto-modal-overlay">
         <div class="tugesto-modal-window">
-          <button class="tugesto-control-btn" id="tugesto-mute-agent-btn" title="Silenciar Agente">🔊</button>
           
+          <button class="tugesto-close-modal" id="tugesto-close-btn">×</button>
+
           <div class="tugesto-left-panel">
             <div class="tugesto-logo">
               <div class="tugesto-logo-icon"></div> tugesto
@@ -149,8 +151,8 @@ class TugestoWidget {
             <video id="tugesto-video-player" class="tugesto-video-player" controls></video>
 
             <div class="tugesto-controls-bar">
-              <button class="tugesto-control-btn" id="tugesto-mute-btn">🎤</button>
-              <button class="tugesto-control-btn hangup" id="tugesto-hangup-btn">📞</button>
+              <button class="tugesto-control-btn" id="tugesto-mute-agent-btn" title="Silenciar Agente">🔊</button>
+              <button class="tugesto-control-btn hangup" id="tugesto-hangup-btn" title="Colgar">📞</button>
             </div>
           </div>
 
@@ -202,7 +204,7 @@ class TugestoWidget {
       if (e.key === 'Enter') this.sendMessage(input.value);
     });
 
-    // Botón de silenciar micrófono
+    // Botón de silenciar agente
     document.getElementById('tugesto-mute-agent-btn').addEventListener('click', () => this.toggleAgentVolume());
   }
 
@@ -242,7 +244,7 @@ class TugestoWidget {
       // 2. Enviar el texto real a la IA de ElevenLabs
       if (this.conversation && this.isConnected) {
         try {
-          await this.conversation.sendUserMessage(text); 
+          await this.conversation.sendUserMessage({ text: text }); 
         } catch (e) {
           console.error("Error al enviar mensaje de texto:", e);
         }
@@ -296,28 +298,22 @@ class TugestoWidget {
         onModeChange: (mode) => {
              this.updateStatus(mode.mode === 'speaking' ? 'Hablando...' : 'Escuchando...');
         },
-        // 👇 ESTO ES LO NUEVO: TRANSCRIPCIÓN EN TIEMPO REAL 👇
+        // TRANSCRIPCIÓN EN TIEMPO REAL
         onMessage: (message) => {
           const text = message.message || message.text;
           
-          // Solo mostramos los mensajes de la IA, pero evitamos borradores a medias
           if (message.source === 'ai' && text) {
-            // Buscamos si el último mensaje ya es de la IA (para no crear 20 burbujas por frase)
             const messagesList = document.getElementById('tugesto-messages-list');
             const lastMessage = messagesList.lastElementChild;
             
             if (lastMessage && lastMessage.classList.contains('agent')) {
-              // Si el último es de la IA, simplemente le añadimos el texto nuevo
               lastMessage.textContent += " " + text;
             } else {
-              // Si es un turno de habla nuevo, creamos una burbuja nueva
               this.addMessageToChat('agent', text);
             }
-            // Hacemos scroll abajo del todo
             messagesList.scrollTop = messagesList.scrollHeight;
           }
         },
-        // 👆 HASTA AQUÍ LA TRANSCRIPCIÓN 👆
         onError: (err) => {
           console.error("ElevenLabs Error:", err);
           this.closeModal();
@@ -344,8 +340,6 @@ class TugestoWidget {
     document.getElementById('tugesto-video-player').style.display = 'none';
     document.getElementById('tugesto-video-player').pause();
     document.getElementById('tugesto-avatar-state').style.display = 'block';
-    // Limpiar chat (opcional, si quieres que empiece de cero cada vez)
-    // document.getElementById('tugesto-messages-list').innerHTML = '';
   }
 }
 
