@@ -233,23 +233,21 @@ class TugestoWidget {
   }
 
   async sendMessage(text) {
-    if (!text.trim()) return;
-    
-    this.addMessageToChat('user', text);
-    document.getElementById('tugesto-input').value = '';
+      if (!text.trim()) return;
+      
+      // 1. Mostrar tu mensaje en la pantalla
+      this.addMessageToChat('user', text);
+      document.getElementById('tugesto-input').value = '';
 
-    if (this.conversation && this.isConnected) {
-      try {
-        // Enviar mensaje de texto a la IA (si el modo lo permite)
-        // Nota: El SDK de voz principal a veces no soporta `sendTextMessage`.
-        // Si falla, la interacción principal sigue siendo por voz.
-        // await this.conversation.sendTextMessage(text); 
-        console.log("Mensaje enviado (simulado):", text);
-      } catch (e) {
-        console.error("Error al enviar mensaje de texto:", e);
+      // 2. Enviar el texto real a la IA de ElevenLabs
+      if (this.conversation && this.isConnected) {
+        try {
+          await this.conversation.sendUserMessage(text); 
+        } catch (e) {
+          console.error("Error al enviar mensaje de texto:", e);
+        }
       }
     }
-  }
 
   toggleMute() {
     if (!this.conversation) return;
