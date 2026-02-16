@@ -134,7 +134,7 @@ class TugestoWidget {
 
       <div id="tugesto-modal" class="tugesto-modal-overlay">
         <div class="tugesto-modal-window">
-          <button class="tugesto-close-modal" id="tugesto-close-btn">×</button>
+          <button class="tugesto-control-btn" id="tugesto-mute-agent-btn" title="Silenciar Agente">🔊</button>
           
           <div class="tugesto-left-panel">
             <div class="tugesto-logo">
@@ -203,7 +203,7 @@ class TugestoWidget {
     });
 
     // Botón de silenciar micrófono
-    document.getElementById('tugesto-mute-btn').addEventListener('click', () => this.toggleMute());
+    document.getElementById('tugesto-mute-agent-btn').addEventListener('click', () => this.toggleAgentVolume());
   }
 
   async openModal() {
@@ -249,12 +249,16 @@ class TugestoWidget {
       }
     }
 
-  toggleMute() {
+  async toggleAgentVolume() {
     if (!this.conversation) return;
-    this.isMicMuted = !this.isMicMuted;
-    // Lógica para silenciar el SDK (depende de la implementación exacta del SDK)
-    // this.conversation.setMicrophoneMuted(this.isMicMuted); 
-    document.getElementById('tugesto-mute-btn').textContent = this.isMicMuted ? '🔇' : '🎤';
+    
+    this.isAgentMuted = !this.isAgentMuted;
+    
+    // El método setVolume de ElevenLabs acepta un valor entre 0 y 1
+    await this.conversation.setVolume({ volume: this.isAgentMuted ? 0 : 1 });
+    
+    // Cambiamos el icono del botón
+    document.getElementById('tugesto-mute-agent-btn').textContent = this.isAgentMuted ? '🔇' : '🔊';
   }
 
   async startCall() {
@@ -278,7 +282,6 @@ class TugestoWidget {
             return "Video mostrándose en pantalla.";
           },
           showHubSpot: async () => {
-            // Aquí podrías abrir un modal encima o redirigir
             window.open('https://meetings.hubspot.com/TU-USUARIO', '_blank');
             return "He abierto el calendario en una nueva pestaña.";
           }
@@ -293,6 +296,28 @@ class TugestoWidget {
         onModeChange: (mode) => {
              this.updateStatus(mode.mode === 'speaking' ? 'Hablando...' : 'Escuchando...');
         },
+        // 👇 ESTO ES LO NUEVO: TRANSCRIPCIÓN EN TIEMPO REAL 👇
+        onMessage: (message) => {
+          const text = message.message || message.text;
+          
+          // Solo mostramos los mensajes de la IA, pero evitamos borradores a medias
+          if (message.source === 'ai' && text) {
+            // Buscamos si el último mensaje ya es de la IA (para no crear 20 burbujas por frase)
+            const messagesList = document.getElementById('tugesto-messages-list');
+            const lastMessage = messagesList.lastElementChild;
+            
+            if (lastMessage && lastMessage.classList.contains('agent')) {
+              // Si el último es de la IA, simplemente le añadimos el texto nuevo
+              lastMessage.textContent += " " + text;
+            } else {
+              // Si es un turno de habla nuevo, creamos una burbuja nueva
+              this.addMessageToChat('agent', text);
+            }
+            // Hacemos scroll abajo del todo
+            messagesList.scrollTop = messagesList.scrollHeight;
+          }
+        },
+        // 👆 HASTA AQUÍ LA TRANSCRIPCIÓN 👆
         onError: (err) => {
           console.error("ElevenLabs Error:", err);
           this.closeModal();
