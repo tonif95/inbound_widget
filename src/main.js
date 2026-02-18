@@ -8,6 +8,7 @@ class TugestoWidget {
     this.conversation = null;
     this.isConnected = false;
     this.isAgentMuted = false;
+    this.callTimeout = null; // Controla el límite de 10 minutos
     
     // Tus URLs de video absolutas para que funcionen en cualquier sitio
     this.videos = {
@@ -295,6 +296,12 @@ class TugestoWidget {
         onConnect: () => {
           this.isConnected = true;
           this.updateStatus('Escuchando...');
+
+          // TEMPORIZADOR DE 10 MINUTOS (600 SEGS)
+          this.callTimeout = setTimeout(() => {
+            alert("La sesión ha finalizado por límite de tiempo (10 minutos).");
+            this.closeModal();
+          }, 600000); // 600000 ms = 600 segundos
         },
         onDisconnect: () => {
           this.stopCall();
@@ -334,6 +341,13 @@ class TugestoWidget {
   }
 
   async stopCall() {
+    // 1. Limpiar el temporizador si el usuario cuelga antes de los 10 min
+    if (this.callTimeout) {
+      clearTimeout(this.callTimeout);
+      this.callTimeout = null;
+    }
+
+    // 2. Finalizar la sesión de la IA
     if (this.conversation) {
       await this.conversation.endSession();
       this.conversation = null;
@@ -341,10 +355,17 @@ class TugestoWidget {
     this.isConnected = false;
     this.updateStatus('Desconectado');
     
-    // Resetear vista
+    // 3. Resetear vista de video
     document.getElementById('tugesto-video-player').style.display = 'none';
     document.getElementById('tugesto-video-player').pause();
     document.getElementById('tugesto-avatar-state').style.display = 'block';
+
+    // 4. RESETEAR EL HISTORIAL DE CHAT
+    document.getElementById('tugesto-messages-list').innerHTML = `
+      <div class="tugesto-message agent">
+        Hola, veo que quieres agendar una demo gratuita con un experto en tugesto. ¿Te gustaría que te ayude a reservarla ahora mismo?
+      </div>
+    `;
   }
 }
 
