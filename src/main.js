@@ -66,7 +66,11 @@ class TugestoWidget {
       .tugesto-modal-overlay.active { display: flex; opacity: 1; }
       
       .tugesto-modal-window {
-        background: var(--tugesto-bg); width: 95%; max-width: 1100px; height: 85vh; max-height: 700px;
+        background: var(--tugesto-bg);
+        width: 95vw;
+        max-width: 1400px; /* AUMENTADO PARA MÁS ESPACIO */
+        height: 90vh;
+        max-height: 900px; /* AUMENTADO PARA MÁS ESPACIO */
         border-radius: 16px; overflow: hidden; display: flex; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         position: relative;
       }
@@ -86,7 +90,8 @@ class TugestoWidget {
       .tugesto-status-badge { background: rgba(0,0,0,0.6); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-bottom: 15px; display: inline-block;}
       .tugesto-avatar-img { width: 180px; height: 180px; border-radius: 50%; border: 4px solid white; object-fit: cover; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
       
-      .tugesto-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 3; display: none; background: black; }
+      /* CAMBIO AQUÍ: object-fit contain y fondo negro para que el vídeo quepa siempre entero */
+      .tugesto-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; z-index: 3; display: none; background: black; }
       
       /* Contenedor de HubSpot */
       .tugesto-hubspot-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; display: none; background: #F8F9FA; }
@@ -150,7 +155,7 @@ class TugestoWidget {
             
             <div class="tugesto-avatar-container" id="tugesto-avatar-state">
               <div class="tugesto-status-badge" id="tugesto-status-text">Conectando...</div>
-              <img src="https://via.placeholder.com/180" alt="Avatar IA" class="tugesto-avatar-img">
+              <img src="https://inboundwidget.vercel.app/images/avatar.jpg" alt="Avatar IA" class="tugesto-avatar-img">
             </div>
             
             <video id="tugesto-video-player" class="tugesto-video-player" controls></video>
