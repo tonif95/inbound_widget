@@ -10,11 +10,13 @@ class TugestoWidget {
     this.isAgentMuted = false;
     this.callTimeout = null; 
     
-    // Control de la secuencia de videos
+    // 🚨 VARIABLES DE CONTROL DE SECUENCIA Y SINCRONIZACIÓN
     this.currentSequence = null;
     this.currentVideoIndex = 0;
+    this.stepVideoEnded = false;
+    this.stepAiEnded = false;
+    this.aiHasStartedSpeakingThisStep = false;
     
-    // 🚨 NUEVA ESTRUCTURA: Secuencias de vídeos con sus frases personalizadas
     this.videos = {
       'fichaje': [
         { 
@@ -32,24 +34,32 @@ class TugestoWidget {
       ],
       'nominas': [
         { 
-          url: 'https://inboundwidget.vercel.app/videos/demo-nominas.mp4', 
-          frase: 'Con nuestro sistema de nóminas, toda la documentación se genera de forma automática cada mes.' 
+          url: 'https://inboundwidget.vercel.app/videos/nominas1.mp4', 
+          frase: 'En el apartado de nóminas tus empleados podrán visualizar fácilmente lo que han cobrado cada mes, la retención que se le está aplicando y su salario anual bruto y neto.' 
         },
         { 
-          url: 'https://inboundwidget.vercel.app/videos/demo-nominas2.mp4', 
-          frase: 'Los empleados reciben una notificación en su teléfono cuando su nómina está lista para descargar.' 
+          url: 'https://inboundwidget.vercel.app/videos/nominas2.mp4', 
+          frase: 'Además, disponemos de "tu nómina fácil" que explica de manera muy sencilla la nómina de cada empleado para reducir las innumerables preguntas que debes recibir cada mes de tus empleados sobre sus nóminas. Tienes alguna duda sobre lo que hemos visto?' 
         }
       ],
-      'portal': [
+      'documentosyfirmas': [
         { 
-          url: 'https://inboundwidget.vercel.app/videos/demo-portal.mp4', 
-          frase: 'Este es el portal del empleado, un espacio diseñado para centralizar peticiones, ausencias y documentos de empresa.' 
+          url: 'https://inboundwidget.vercel.app/videos/documentos1.mp4', 
+          frase: 'EDesde el apartado de documentos, tú y tus empleados tendréis acceso a todos los documentos típicos de la organización que ahora te suponen emails de un lado a otro. Como el modelo 145, contratos, certificados etc.' 
+        },
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/documentos2.mp4', 
+          frase: 'Lo mejor de todo, es que desde la plataforma, tanto tú como tus empleados podrán firmar dichos documentos. Di adiós a todo el papeleo e ineficiencias de emails, imprimir, escanear etc. Con tugesto podrán firmarlos simplemente añadiendo su nombre o dibujando su firma en el ordenador o móvil. Tienes alguna duda sobre lo que hemos visto?' 
         }
       ],
-      'general': [
+      'vacacionesyausencias': [
         { 
-          url: 'https://inboundwidget.vercel.app/videos/demo-general.mp4', 
-          frase: 'Te doy un paseo rápido por nuestra plataforma. Como ves, todo está integrado en un solo lugar.' 
+          url: 'https://inboundwidget.vercel.app/videos/vacaciones1.mp4', 
+          frase: 'Desde el apartado de ausencias tus empleados pueden solicitar vacaciones de una manera muy sencilla. Su manager recibe la solicitud para aprobar o rechazar en un click.' 
+        },
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/vacaciones2.mp4', 
+          frase: 'Algo diferencial de tugesto es que la plataforma muestra todos las posibles tipos de ausencias incluidos en tu convenio para que tus empleados siempre elijan el correcto y entiendan si son retribuidos o no.  Además, esto se vuelca automáticamente al cálculo de las nóminas. Imagina el tiempo que ahorrarás con esto. Tienes alguna duda sobre lo que hemos visto?' 
         }
       ]
     };
@@ -98,13 +108,12 @@ class TugestoWidget {
       }
       .tugesto-modal-overlay.active { display: flex; opacity: 1; }
       
-      /* 🚨 CAMBIO: MODAL AÚN MÁS GRANDE */
       .tugesto-modal-window {
         background: var(--tugesto-bg);
-        width: 98vw;
-        max-width: 1600px;
-        height: 95vh;
-        max-height: 950px;
+        width: 95vw;
+        max-width: 1400px;
+        height: 90vh;
+        max-height: 900px;
         border-radius: 16px; overflow: hidden; display: flex; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         position: relative;
       }
@@ -245,36 +254,11 @@ class TugestoWidget {
 
     document.getElementById('tugesto-mute-agent-btn').addEventListener('click', () => this.toggleAgentVolume());
 
-    // 🚨 LÓGICA DE SECUENCIA DE VÍDEOS: Al terminar un vídeo, reproducimos el siguiente
+    // 🚨 CUANDO TERMINA EL VÍDEO
     const videoPlayer = document.getElementById('tugesto-video-player');
-    videoPlayer.addEventListener('ended', async () => {
-      // Si hay más videos en la secuencia de esta sección
-      if (this.currentSequence && this.currentVideoIndex < this.currentSequence.length - 1) {
-        
-        this.currentVideoIndex++;
-        const nextVideo = this.currentSequence[this.currentVideoIndex];
-        
-        // Reproducimos el siguiente
-        videoPlayer.src = nextVideo.url;
-        videoPlayer.play().catch(e => console.log(e));
-        
-        // Le mandamos la nueva frase a la IA por debajo (sin que salga en el chat visual del usuario)
-        if (this.conversation && this.isConnected) {
-          const promptSistema = `[Instrucción estricta del sistema]: Estás mostrando la parte ${this.currentVideoIndex + 1} de la demo. Tienes que decirle al usuario EXACTAMENTE esta frase, sin añadir nada más: "${nextVideo.frase}"`;
-          await this.conversation.sendUserMessage(promptSistema);
-        }
-
-      } else {
-        // La secuencia entera ha terminado
-        this.currentSequence = null;
-        videoPlayer.style.display = 'none';
-        document.getElementById('tugesto-avatar-state').style.display = 'block';
-
-        // Avisamos a la IA de que se acabó la presentación
-        if (this.conversation && this.isConnected) {
-          await this.conversation.sendUserMessage(`[Instrucción del sistema]: La secuencia de videos ha terminado y vuelves a estar en pantalla. Pregúntale al usuario qué le ha parecido o si quiere agendar una reunión.`);
-        }
-      }
+    videoPlayer.addEventListener('ended', () => {
+      this.stepVideoEnded = true; // Marcamos que el vídeo ha acabado
+      this.checkSequenceAdvance(); // Comprobamos si la IA también ha acabado
     });
 
     window.addEventListener('message', (event) => {
@@ -286,6 +270,51 @@ class TugestoWidget {
         }
       }
     });
+  }
+
+  // 🚨 FUNCIÓN PARA REPRODUCIR LA PARTE ACTUAL DE LA SECUENCIA
+  async playCurrentStep() {
+    if (!this.currentSequence) return;
+
+    // Reseteamos validadores
+    this.stepVideoEnded = false;
+    this.stepAiEnded = false;
+    this.aiHasStartedSpeakingThisStep = false;
+
+    const currentVideo = this.currentSequence[this.currentVideoIndex];
+    
+    // Mostramos el vídeo
+    const player = document.getElementById('tugesto-video-player');
+    player.src = currentVideo.url;
+    player.style.display = 'block';
+    player.play().catch(e => console.log(e));
+
+    // Mandamos a la IA su frase
+    if (this.conversation && this.isConnected) {
+      const promptSistema = `[Instrucción estricta del sistema]: Di EXACTAMENTE esta frase, de forma natural, y luego guarda silencio absoluto hasta que te vuelva a avisar: "${currentVideo.frase}"`;
+      await this.conversation.sendUserMessage(promptSistema);
+    }
+  }
+
+  // 🚨 FUNCIÓN QUE DECIDE SI AVANZAR O TERMINAR
+  async checkSequenceAdvance() {
+    // Solo avanzamos si ESTAMOS en una secuencia, el vídeo HA TERMINADO y la IA SE HA CALLADO
+    if (!this.currentSequence || !this.stepVideoEnded || !this.stepAiEnded) return;
+
+    if (this.currentVideoIndex < this.currentSequence.length - 1) {
+      // Quedan vídeos, pasamos al siguiente
+      this.currentVideoIndex++;
+      this.playCurrentStep();
+    } else {
+      // Fin de la presentación
+      this.currentSequence = null;
+      document.getElementById('tugesto-video-player').style.display = 'none';
+      document.getElementById('tugesto-avatar-state').style.display = 'block';
+
+      if (this.conversation && this.isConnected) {
+        await this.conversation.sendUserMessage(`[Instrucción del sistema]: La demostración ha terminado y vuelves a estar en pantalla. Pregúntale al usuario qué le ha parecido o si quiere agendar una reunión.`);
+      }
+    }
   }
 
   async openModal() {
@@ -316,7 +345,6 @@ class TugestoWidget {
 
   async sendMessage(text) {
     if (!text.trim()) return;
-    
     this.addMessageToChat('user', text);
     document.getElementById('tugesto-input').value = '';
 
@@ -349,22 +377,15 @@ class TugestoWidget {
           showDemoVideo: async ({ feature }) => {
             const key = feature || 'general';
             
-            // 🚨 Cargar la secuencia elegida o la general por defecto
-            const sequence = this.videos[key] || this.videos['general'];
-            this.currentSequence = sequence;
-            this.currentVideoIndex = 0; // Empezamos por el primer video
-            
             document.getElementById('tugesto-avatar-state').style.display = 'none';
             document.getElementById('tugesto-hubspot-container').style.display = 'none';
             
-            // Reproducimos el video 1
-            const player = document.getElementById('tugesto-video-player');
-            player.src = sequence[0].url;
-            player.style.display = 'block';
-            player.play().catch(e => console.log(e));
+            // Iniciamos la lógica
+            this.currentSequence = this.videos[key] || this.videos['general'];
+            this.currentVideoIndex = 0;
+            this.playCurrentStep();
             
-            // Devolvemos el texto que la IA debe leer al inicio del primer video
-            return `[Instrucción estricta del sistema]: Vas a reproducir el video 1 de la demostración. Tienes que decirle al usuario EXACTAMENTE esta frase, sin añadir ni una palabra más: "${sequence[0].frase}". Luego guarda silencio.`;
+            return `[Instrucción del sistema]: Inicio de secuencia de videos. He enviado tu primera frase. No añadas nada más.`;
           },
           showHubSpot: async () => {
             document.getElementById('tugesto-avatar-state').style.display = 'none';
@@ -389,6 +410,18 @@ class TugestoWidget {
         },
         onModeChange: (mode) => {
              this.updateStatus(mode.mode === 'speaking' ? 'Hablando...' : 'Escuchando...');
+             
+             // 🚨 VIGILANTE DE LA IA PARA SABER CUÁNDO TERMINA DE HABLAR
+             if (this.currentSequence) {
+               if (mode.mode === 'speaking') {
+                 // La IA acaba de empezar a hablar la frase de este paso
+                 this.aiHasStartedSpeakingThisStep = true;
+               } else if (mode.mode === 'listening' && this.aiHasStartedSpeakingThisStep) {
+                 // La IA acaba de terminar de hablar y se ha callado
+                 this.stepAiEnded = true;
+                 this.checkSequenceAdvance(); // Comprobamos si el vídeo también terminó
+               }
+             }
         },
         onMessage: (message) => {
           const text = message.message || message.text;
@@ -432,7 +465,6 @@ class TugestoWidget {
     this.isConnected = false;
     this.updateStatus('Desconectado');
     
-    // Resetear secuencia de vídeo y vista
     this.currentSequence = null;
     document.getElementById('tugesto-video-player').style.display = 'none';
     document.getElementById('tugesto-video-player').pause();
