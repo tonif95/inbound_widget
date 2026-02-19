@@ -8,14 +8,50 @@ class TugestoWidget {
     this.conversation = null;
     this.isConnected = false;
     this.isAgentMuted = false;
-    this.callTimeout = null; // Controla el límite de 10 minutos
+    this.callTimeout = null; 
     
-    // Tus URLs de video (Asegúrate de que apuntan a tu carpeta 'public' en Vercel)
+    // Control de la secuencia de videos
+    this.currentSequence = null;
+    this.currentVideoIndex = 0;
+    
+    // 🚨 NUEVA ESTRUCTURA: Secuencias de vídeos con sus frases personalizadas
     this.videos = {
-      'fichaje': 'https://inboundwidget.vercel.app/videos/fichajes1.mp4',
-      'nominas': 'https://inboundwidget.vercel.app/videos/demo-nominas.mp4',
-      'portal': 'https://inboundwidget.vercel.app/videos/demo-portal.mp4',
-      'general': 'https://inboundwidget.vercel.app/videos/demo-general.mp4'
+      'fichaje': [
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/fichajes1.mp4', 
+          frase: 'Tus empleados podrán fichar cada día fácilmente desde la pantalla de inicio o el apartado de fichajes. Podrán hacerlo desde el ordenador, móvil o de manera física con tarjetas o códigos.' 
+        },
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/fichajes2.mp4', 
+          frase: 'Además, con tugesto, puedes imputar en tiempo real tus horas a proyectos específicos para luego ayudar en la contabilidad y asignación de tiempo a proyectos. Y como ves se hace muy fácilmente con un par de clicks ' 
+        },
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/fichajes3.mp4', 
+          frase: 'También ten en cuenta que si a tus empleados se les pasa fichar o necesitan editar la información de fichajes de días anteriores también pueden hacerlo desde la plataforma - con la aprobación de su manager. Así les das el control a tus empleados de mantener sus fichajes actualizados. Tienes alguna duda sobre fichajes?' 
+        }
+      ],
+      'nominas': [
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/demo-nominas.mp4', 
+          frase: 'Con nuestro sistema de nóminas, toda la documentación se genera de forma automática cada mes.' 
+        },
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/demo-nominas2.mp4', 
+          frase: 'Los empleados reciben una notificación en su teléfono cuando su nómina está lista para descargar.' 
+        }
+      ],
+      'portal': [
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/demo-portal.mp4', 
+          frase: 'Este es el portal del empleado, un espacio diseñado para centralizar peticiones, ausencias y documentos de empresa.' 
+        }
+      ],
+      'general': [
+        { 
+          url: 'https://inboundwidget.vercel.app/videos/demo-general.mp4', 
+          frase: 'Te doy un paseo rápido por nuestra plataforma. Como ves, todo está integrado en un solo lugar.' 
+        }
+      ]
     };
     
     this.init();
@@ -25,7 +61,6 @@ class TugestoWidget {
     this.injectStyles();
     this.renderUI();
     this.attachEvents();
-    // Iniciar con la burbuja visible
     document.getElementById('tugesto-bubble').style.display = 'flex';
   }
 
@@ -33,7 +68,7 @@ class TugestoWidget {
     const style = document.createElement('style');
     style.textContent = `
       :root {
-        --tugesto-primary: #E67E22; /* Naranja Tugesto */
+        --tugesto-primary: #E67E22;
         --tugesto-bg: #F8F9FA;
         --tugesto-text: #333;
         --tugesto-chat-bg-user: #E67E22;
@@ -43,7 +78,6 @@ class TugestoWidget {
       }
       #tugesto-widget-root { position: fixed; bottom: 25px; right: 25px; z-index: 999999; font-family: 'Segoe UI', system-ui, sans-serif; }
       
-      /* Burbuja Proactiva (Botón de inicio) */
       .tugesto-bubble {
         display: flex; align-items: center; gap: 12px;
         background: white; padding: 12px 20px; border-radius: 30px;
@@ -56,7 +90,6 @@ class TugestoWidget {
       .tugesto-bubble-text strong { font-size: 14px; color: var(--tugesto-text); }
       .tugesto-bubble-text small { font-size: 12px; color: #666; }
 
-      /* Modal Principal */
       .tugesto-modal-overlay {
         display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
         background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
@@ -65,19 +98,19 @@ class TugestoWidget {
       }
       .tugesto-modal-overlay.active { display: flex; opacity: 1; }
       
+      /* 🚨 CAMBIO: MODAL AÚN MÁS GRANDE */
       .tugesto-modal-window {
         background: var(--tugesto-bg);
-        width: 95vw;
-        max-width: 1400px; /* AUMENTADO PARA MÁS ESPACIO */
-        height: 90vh;
-        max-height: 900px; /* AUMENTADO PARA MÁS ESPACIO */
+        width: 98vw;
+        max-width: 1600px;
+        height: 95vh;
+        max-height: 950px;
         border-radius: 16px; overflow: hidden; display: flex; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         position: relative;
       }
       .tugesto-close-modal { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; color: #999; cursor: pointer; z-index: 10; }
       .tugesto-close-modal:hover { color: #333; }
 
-      /* Sección Izquierda (Video/Avatar/HubSpot) */
       .tugesto-left-panel {
         flex: 3; background: #E0D4C8;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -90,10 +123,8 @@ class TugestoWidget {
       .tugesto-status-badge { background: rgba(0,0,0,0.6); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-bottom: 15px; display: inline-block;}
       .tugesto-avatar-img { width: 180px; height: 180px; border-radius: 50%; border: 4px solid white; object-fit: cover; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
       
-      /* CAMBIO AQUÍ: object-fit contain y fondo negro para que el vídeo quepa siempre entero */
       .tugesto-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: contain; z-index: 3; display: none; background: black; }
       
-      /* Contenedor de HubSpot */
       .tugesto-hubspot-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; display: none; background: #F8F9FA; }
       .tugesto-hubspot-container iframe { width: 100%; height: 100%; border: none; }
 
@@ -107,7 +138,6 @@ class TugestoWidget {
       .tugesto-control-btn.hangup { background: #DC3545; color: white; }
       .tugesto-control-btn.hangup:hover { background: #C82333; }
 
-      /* Sección Derecha (Chat) */
       .tugesto-right-panel {
         flex: 2; background: white; display: flex; flex-direction: column;
         border-left: 1px solid #eee;
@@ -197,17 +227,14 @@ class TugestoWidget {
   }
 
   attachEvents() {
-    // Abrir y cerrar modal
     document.getElementById('tugesto-bubble').addEventListener('click', () => this.openModal());
     document.getElementById('tugesto-close-btn').addEventListener('click', () => this.closeModal());
     document.getElementById('tugesto-hangup-btn').addEventListener('click', () => this.closeModal());
 
-    // Botones de respuesta rápida
     document.querySelectorAll('.tugesto-reply-chip').forEach(button => {
       button.addEventListener('click', (e) => this.sendMessage(e.target.dataset.text));
     });
 
-    // Enviar mensaje con input y botón
     const input = document.getElementById('tugesto-input');
     const sendBtn = document.getElementById('tugesto-send-btn');
     
@@ -216,24 +243,44 @@ class TugestoWidget {
       if (e.key === 'Enter') this.sendMessage(input.value);
     });
 
-    // Botón de silenciar agente
     document.getElementById('tugesto-mute-agent-btn').addEventListener('click', () => this.toggleAgentVolume());
 
-    // Detectar cuando el vídeo termina para ocultarlo y mostrar el avatar
+    // 🚨 LÓGICA DE SECUENCIA DE VÍDEOS: Al terminar un vídeo, reproducimos el siguiente
     const videoPlayer = document.getElementById('tugesto-video-player');
-    videoPlayer.addEventListener('ended', () => {
-      videoPlayer.style.display = 'none';
-      document.getElementById('tugesto-avatar-state').style.display = 'block';
+    videoPlayer.addEventListener('ended', async () => {
+      // Si hay más videos en la secuencia de esta sección
+      if (this.currentSequence && this.currentVideoIndex < this.currentSequence.length - 1) {
+        
+        this.currentVideoIndex++;
+        const nextVideo = this.currentSequence[this.currentVideoIndex];
+        
+        // Reproducimos el siguiente
+        videoPlayer.src = nextVideo.url;
+        videoPlayer.play().catch(e => console.log(e));
+        
+        // Le mandamos la nueva frase a la IA por debajo (sin que salga en el chat visual del usuario)
+        if (this.conversation && this.isConnected) {
+          const promptSistema = `[Instrucción estricta del sistema]: Estás mostrando la parte ${this.currentVideoIndex + 1} de la demo. Tienes que decirle al usuario EXACTAMENTE esta frase, sin añadir nada más: "${nextVideo.frase}"`;
+          await this.conversation.sendUserMessage(promptSistema);
+        }
+
+      } else {
+        // La secuencia entera ha terminado
+        this.currentSequence = null;
+        videoPlayer.style.display = 'none';
+        document.getElementById('tugesto-avatar-state').style.display = 'block';
+
+        // Avisamos a la IA de que se acabó la presentación
+        if (this.conversation && this.isConnected) {
+          await this.conversation.sendUserMessage(`[Instrucción del sistema]: La secuencia de videos ha terminado y vuelves a estar en pantalla. Pregúntale al usuario qué le ha parecido o si quiere agendar una reunión.`);
+        }
+      }
     });
 
-    // Detectar cuando se completa una reserva en el iFrame de HubSpot
     window.addEventListener('message', (event) => {
       if (event.data && event.data.meetingBooked) {
-        // Ocultar calendario y mostrar avatar
         document.getElementById('tugesto-hubspot-container').style.display = 'none';
         document.getElementById('tugesto-avatar-state').style.display = 'block';
-        
-        // Enviar un mensaje "invisible" a la IA para que sepa que hemos terminado y nos responda
         if (this.conversation && this.isConnected) {
           this.sendMessage("He completado la reserva en el calendario.");
         }
@@ -270,11 +317,9 @@ class TugestoWidget {
   async sendMessage(text) {
     if (!text.trim()) return;
     
-    // Mostrar el mensaje en pantalla
     this.addMessageToChat('user', text);
     document.getElementById('tugesto-input').value = '';
 
-    // Enviar a la IA
     if (this.conversation && this.isConnected) {
       try {
         this.updateStatus('Procesando texto...');
@@ -288,10 +333,8 @@ class TugestoWidget {
 
   async toggleAgentVolume() {
     if (!this.conversation) return;
-    
     this.isAgentMuted = !this.isAgentMuted;
     await this.conversation.setVolume({ volume: this.isAgentMuted ? 0 : 1 });
-    
     document.getElementById('tugesto-mute-agent-btn').textContent = this.isAgentMuted ? '🔇' : '🔊';
   }
 
@@ -305,27 +348,28 @@ class TugestoWidget {
         clientTools: {
           showDemoVideo: async ({ feature }) => {
             const key = feature || 'general';
-            const url = this.videos[key] || this.videos['general'];
             
-            // Ocultamos avatar y HubSpot
+            // 🚨 Cargar la secuencia elegida o la general por defecto
+            const sequence = this.videos[key] || this.videos['general'];
+            this.currentSequence = sequence;
+            this.currentVideoIndex = 0; // Empezamos por el primer video
+            
             document.getElementById('tugesto-avatar-state').style.display = 'none';
             document.getElementById('tugesto-hubspot-container').style.display = 'none';
             
-            // Mostramos y reproducimos video
+            // Reproducimos el video 1
             const player = document.getElementById('tugesto-video-player');
-            player.src = url;
+            player.src = sequence[0].url;
             player.style.display = 'block';
             player.play().catch(e => console.log(e));
             
-            return "Video reproduciéndose en pantalla. Mantente en silencio hasta que termine o el usuario hable.";
+            // Devolvemos el texto que la IA debe leer al inicio del primer video
+            return `[Instrucción estricta del sistema]: Vas a reproducir el video 1 de la demostración. Tienes que decirle al usuario EXACTAMENTE esta frase, sin añadir ni una palabra más: "${sequence[0].frase}". Luego guarda silencio.`;
           },
           showHubSpot: async () => {
-            // Ocultamos avatar y vídeo
             document.getElementById('tugesto-avatar-state').style.display = 'none';
             document.getElementById('tugesto-video-player').style.display = 'none';
             document.getElementById('tugesto-video-player').pause();
-            
-            // Mostramos el calendario
             document.getElementById('tugesto-hubspot-container').style.display = 'block';
             
             return "El calendario se está mostrando en pantalla. Pide al usuario que elija una fecha y hora en el widget.";
@@ -335,11 +379,10 @@ class TugestoWidget {
           this.isConnected = true;
           this.updateStatus('Escuchando...');
 
-          // TEMPORIZADOR DE 10 MINUTOS
           this.callTimeout = setTimeout(() => {
             alert("La sesión ha finalizado por límite de tiempo (10 minutos).");
             this.closeModal();
-          }, 600000); // 600000 ms = 10 mins
+          }, 600000);
         },
         onDisconnect: () => {
           this.stopCall();
@@ -347,7 +390,6 @@ class TugestoWidget {
         onModeChange: (mode) => {
              this.updateStatus(mode.mode === 'speaking' ? 'Hablando...' : 'Escuchando...');
         },
-        // TRANSCRIPCIÓN DEL CHAT
         onMessage: (message) => {
           const text = message.message || message.text;
           
@@ -378,13 +420,11 @@ class TugestoWidget {
   }
 
   async stopCall() {
-    // 1. Limpiar temporizador
     if (this.callTimeout) {
       clearTimeout(this.callTimeout);
       this.callTimeout = null;
     }
 
-    // 2. Finalizar sesión
     if (this.conversation) {
       await this.conversation.endSession();
       this.conversation = null;
@@ -392,17 +432,16 @@ class TugestoWidget {
     this.isConnected = false;
     this.updateStatus('Desconectado');
     
-    // 3. Resetear toda la vista izquierda
+    // Resetear secuencia de vídeo y vista
+    this.currentSequence = null;
     document.getElementById('tugesto-video-player').style.display = 'none';
     document.getElementById('tugesto-video-player').pause();
     document.getElementById('tugesto-hubspot-container').style.display = 'none';
     document.getElementById('tugesto-avatar-state').style.display = 'block';
 
-    // Recargar el iframe de HubSpot para que vuelva a la primera pantalla
     const iframe = document.getElementById('tugesto-hubspot-iframe');
     if(iframe) iframe.src = iframe.src; 
 
-    // 4. Resetear el historial de chat
     document.getElementById('tugesto-messages-list').innerHTML = `
       <div class="tugesto-message agent">
         Hola, veo que quieres agendar una demo gratuita con un experto en tugesto. ¿Te gustaría que te ayude a reservarla ahora mismo?
@@ -411,7 +450,6 @@ class TugestoWidget {
   }
 }
 
-// Inicializar
 window.addEventListener('DOMContentLoaded', () => {
   new TugestoWidget();
 });
