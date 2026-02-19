@@ -10,14 +10,13 @@ class TugestoWidget {
     this.isAgentMuted = false;
     this.callTimeout = null; // Controla el límite de 10 minutos
     
-    // Tus URLs de video absolutas para que funcionen en cualquier sitio
+    // Tus URLs de video (Asegúrate de que apuntan a tu carpeta 'public' en Vercel)
     this.videos = {
       'fichaje': 'https://inboundwidget.vercel.app/videos/fichajes1.mp4',
-      'nominas': 'https://tu-dominio.com/videos/demo-nominas.mp4',
-      'portal': 'https://tu-dominio.com/videos/demo-portal.mp4',
-      'general': 'https://tu-dominio.com/videos/demo-general.mp4'
+      'nominas': 'https://inboundwidget.vercel.app/videos/demo-nominas.mp4',
+      'portal': 'https://inboundwidget.vercel.app/videos/demo-portal.mp4',
+      'general': 'https://inboundwidget.vercel.app/videos/demo-general.mp4'
     };
-    this.chatHistory = [];
     
     this.init();
   }
@@ -74,9 +73,9 @@ class TugestoWidget {
       .tugesto-close-modal { position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 24px; color: #999; cursor: pointer; z-index: 10; }
       .tugesto-close-modal:hover { color: #333; }
 
-      /* Sección Izquierda (Video/Avatar) */
+      /* Sección Izquierda (Video/Avatar/HubSpot) */
       .tugesto-left-panel {
-        flex: 3; background: #E0D4C8; /* Color de fondo de la imagen */
+        flex: 3; background: #E0D4C8;
         display: flex; flex-direction: column; justify-content: center; align-items: center;
         position: relative; overflow: hidden;
       }
@@ -86,11 +85,16 @@ class TugestoWidget {
       .tugesto-avatar-container { text-align: center; z-index: 2; }
       .tugesto-status-badge { background: rgba(0,0,0,0.6); color: white; padding: 6px 16px; border-radius: 20px; font-size: 14px; margin-bottom: 15px; display: inline-block;}
       .tugesto-avatar-img { width: 180px; height: 180px; border-radius: 50%; border: 4px solid white; object-fit: cover; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
-      .tugesto-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; display: none; }
+      
+      .tugesto-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 3; display: none; background: black; }
+      
+      /* Contenedor de HubSpot */
+      .tugesto-hubspot-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; display: none; background: #F8F9FA; }
+      .tugesto-hubspot-container iframe { width: 100%; height: 100%; border: none; }
 
       .tugesto-controls-bar {
         position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
-        display: flex; gap: 15px; z-index: 3;
+        display: flex; gap: 15px; z-index: 5;
         background: rgba(255,255,255,0.8); padding: 10px 20px; border-radius: 30px;
       }
       .tugesto-control-btn { width: 45px; height: 45px; border-radius: 50%; border: none; background: white; color: #555; font-size: 18px; cursor: pointer; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: all 0.2s; }
@@ -151,6 +155,10 @@ class TugestoWidget {
             
             <video id="tugesto-video-player" class="tugesto-video-player" controls></video>
 
+            <div id="tugesto-hubspot-container" class="tugesto-hubspot-container">
+              <iframe id="tugesto-hubspot-iframe" src="https://meetings-eu1.hubspot.com/angel-roman/web-home-rotacion?embed=true"></iframe>
+            </div>
+
             <div class="tugesto-controls-bar">
               <button class="tugesto-control-btn" id="tugesto-mute-agent-btn" title="Silenciar Agente">🔊</button>
               <button class="tugesto-control-btn hangup" id="tugesto-hangup-btn" title="Colgar">📞</button>
@@ -167,9 +175,9 @@ class TugestoWidget {
             </div>
             
             <div class="tugesto-quick-replies">
-              <button class="tugesto-reply-chip" data-text="Agendar demo con un experto">Agendar demo con un experto</button>
-              <button class="tugesto-reply-chip" data-text="Tengo preguntas sobre tugesto">Tengo preguntas sobre tugesto</button>
-              <button class="tugesto-reply-chip" data-text="Quiero que me muestres el producto">Quiero que me muestres el producto</button>
+              <button class="tugesto-reply-chip" data-text="Agendar demo con un experto">Agendar demo</button>
+              <button class="tugesto-reply-chip" data-text="Tengo preguntas sobre tugesto">Tengo preguntas</button>
+              <button class="tugesto-reply-chip" data-text="Quiero que me muestres el producto">Ver el producto</button>
             </div>
 
             <div class="tugesto-chat-input-area">
@@ -184,10 +192,8 @@ class TugestoWidget {
   }
 
   attachEvents() {
-    // Abrir modal
+    // Abrir y cerrar modal
     document.getElementById('tugesto-bubble').addEventListener('click', () => this.openModal());
-    
-    // Cerrar modal
     document.getElementById('tugesto-close-btn').addEventListener('click', () => this.closeModal());
     document.getElementById('tugesto-hangup-btn').addEventListener('click', () => this.closeModal());
 
@@ -207,6 +213,27 @@ class TugestoWidget {
 
     // Botón de silenciar agente
     document.getElementById('tugesto-mute-agent-btn').addEventListener('click', () => this.toggleAgentVolume());
+
+    // Detectar cuando el vídeo termina para ocultarlo y mostrar el avatar
+    const videoPlayer = document.getElementById('tugesto-video-player');
+    videoPlayer.addEventListener('ended', () => {
+      videoPlayer.style.display = 'none';
+      document.getElementById('tugesto-avatar-state').style.display = 'block';
+    });
+
+    // Detectar cuando se completa una reserva en el iFrame de HubSpot
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.meetingBooked) {
+        // Ocultar calendario y mostrar avatar
+        document.getElementById('tugesto-hubspot-container').style.display = 'none';
+        document.getElementById('tugesto-avatar-state').style.display = 'block';
+        
+        // Enviar un mensaje "invisible" a la IA para que sepa que hemos terminado y nos responda
+        if (this.conversation && this.isConnected) {
+          this.sendMessage("He completado la reserva en el calendario.");
+        }
+      }
+    });
   }
 
   async openModal() {
@@ -238,19 +265,17 @@ class TugestoWidget {
   async sendMessage(text) {
     if (!text.trim()) return;
     
-    // 1. Mostrar tu mensaje en la pantalla
+    // Mostrar el mensaje en pantalla
     this.addMessageToChat('user', text);
     document.getElementById('tugesto-input').value = '';
 
-    // 2. Enviar el texto real a la IA de ElevenLabs
+    // Enviar a la IA
     if (this.conversation && this.isConnected) {
       try {
-        // Mostramos un estado para que no haya interrupciones por ruido
         this.updateStatus('Procesando texto...');
-        // OJO: Pasamos el 'text' directamente como string, no como objeto
         await this.conversation.sendUserMessage(text); 
       } catch (e) {
-        console.error("Error al enviar mensaje de texto:", e);
+        console.error("Error al enviar mensaje:", e);
         this.addMessageToChat('agent', '(Error al enviar el mensaje. Revisa la consola)');
       }
     }
@@ -260,11 +285,8 @@ class TugestoWidget {
     if (!this.conversation) return;
     
     this.isAgentMuted = !this.isAgentMuted;
-    
-    // El método setVolume de ElevenLabs acepta un valor entre 0 y 1
     await this.conversation.setVolume({ volume: this.isAgentMuted ? 0 : 1 });
     
-    // Cambiamos el icono del botón
     document.getElementById('tugesto-mute-agent-btn').textContent = this.isAgentMuted ? '🔇' : '🔊';
   }
 
@@ -280,28 +302,39 @@ class TugestoWidget {
             const key = feature || 'general';
             const url = this.videos[key] || this.videos['general'];
             
+            // Ocultamos avatar y HubSpot
+            document.getElementById('tugesto-avatar-state').style.display = 'none';
+            document.getElementById('tugesto-hubspot-container').style.display = 'none';
+            
+            // Mostramos y reproducimos video
             const player = document.getElementById('tugesto-video-player');
             player.src = url;
             player.style.display = 'block';
-            document.getElementById('tugesto-avatar-state').style.display = 'none';
             player.play().catch(e => console.log(e));
             
-            return "Video mostrándose en pantalla.";
+            return "Video reproduciéndose en pantalla. Mantente en silencio hasta que termine o el usuario hable.";
           },
           showHubSpot: async () => {
-            window.open('https://meetings.hubspot.com/TU-USUARIO', '_blank');
-            return "He abierto el calendario en una nueva pestaña.";
+            // Ocultamos avatar y vídeo
+            document.getElementById('tugesto-avatar-state').style.display = 'none';
+            document.getElementById('tugesto-video-player').style.display = 'none';
+            document.getElementById('tugesto-video-player').pause();
+            
+            // Mostramos el calendario
+            document.getElementById('tugesto-hubspot-container').style.display = 'block';
+            
+            return "El calendario se está mostrando en pantalla. Pide al usuario que elija una fecha y hora en el widget.";
           }
         },
         onConnect: () => {
           this.isConnected = true;
           this.updateStatus('Escuchando...');
 
-          // TEMPORIZADOR DE 10 MINUTOS (600 SEGS)
+          // TEMPORIZADOR DE 10 MINUTOS
           this.callTimeout = setTimeout(() => {
             alert("La sesión ha finalizado por límite de tiempo (10 minutos).");
             this.closeModal();
-          }, 600000); // 600000 ms = 600 segundos
+          }, 600000); // 600000 ms = 10 mins
         },
         onDisconnect: () => {
           this.stopCall();
@@ -309,7 +342,7 @@ class TugestoWidget {
         onModeChange: (mode) => {
              this.updateStatus(mode.mode === 'speaking' ? 'Hablando...' : 'Escuchando...');
         },
-        // TRANSCRIPCIÓN EN TIEMPO REAL
+        // TRANSCRIPCIÓN DEL CHAT
         onMessage: (message) => {
           const text = message.message || message.text;
           
@@ -317,7 +350,6 @@ class TugestoWidget {
             const messagesList = document.getElementById('tugesto-messages-list');
             const lastMessage = messagesList.lastElementChild;
             
-            // Agrupamos el texto de la IA en la misma burbuja si sigue hablando
             if (lastMessage && lastMessage.classList.contains('agent')) {
               lastMessage.textContent += " " + text;
             } else {
@@ -341,13 +373,13 @@ class TugestoWidget {
   }
 
   async stopCall() {
-    // 1. Limpiar el temporizador si el usuario cuelga antes de los 10 min
+    // 1. Limpiar temporizador
     if (this.callTimeout) {
       clearTimeout(this.callTimeout);
       this.callTimeout = null;
     }
 
-    // 2. Finalizar la sesión de la IA
+    // 2. Finalizar sesión
     if (this.conversation) {
       await this.conversation.endSession();
       this.conversation = null;
@@ -355,12 +387,17 @@ class TugestoWidget {
     this.isConnected = false;
     this.updateStatus('Desconectado');
     
-    // 3. Resetear vista de video
+    // 3. Resetear toda la vista izquierda
     document.getElementById('tugesto-video-player').style.display = 'none';
     document.getElementById('tugesto-video-player').pause();
+    document.getElementById('tugesto-hubspot-container').style.display = 'none';
     document.getElementById('tugesto-avatar-state').style.display = 'block';
 
-    // 4. RESETEAR EL HISTORIAL DE CHAT
+    // Recargar el iframe de HubSpot para que vuelva a la primera pantalla
+    const iframe = document.getElementById('tugesto-hubspot-iframe');
+    if(iframe) iframe.src = iframe.src; 
+
+    // 4. Resetear el historial de chat
     document.getElementById('tugesto-messages-list').innerHTML = `
       <div class="tugesto-message agent">
         Hola, veo que quieres agendar una demo gratuita con un experto en tugesto. ¿Te gustaría que te ayude a reservarla ahora mismo?
