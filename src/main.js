@@ -12,7 +12,7 @@ class TugestoWidget {
     
     // Tus URLs de video absolutas para que funcionen en cualquier sitio
     this.videos = {
-      'fichaje': 'https://tu-dominio.com/videos/demo-fichaje.mp4',
+      'fichaje': 'https://inboundwidget.vercel.app/videos/fichajes1.mp4',
       'nominas': 'https://tu-dominio.com/videos/demo-nominas.mp4',
       'portal': 'https://tu-dominio.com/videos/demo-portal.mp4',
       'general': 'https://tu-dominio.com/videos/demo-general.mp4'
